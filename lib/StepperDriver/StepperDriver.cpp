@@ -7,12 +7,15 @@ Stepper::Stepper(int stepsPerRevolution, int step_pin, int dir_pin)
     this->number_of_steps = stepsPerRevolution;
     this->step_pin = step_pin;
     this->dir_pin = dir_pin;
+    this->step_delay = 0;
+    this->speed = 0;
     pinMode(this->step_pin, OUTPUT);
     pinMode(this->dir_pin, OUTPUT);
 }
 
 void Stepper::setSpeed(long whatSpeed)
 {
+    this->speed = whatSpeed;
     //Serial.println("setSpeed");
     this->step_delay = 60L * 1000L * 1000L / this->number_of_steps / abs(whatSpeed);
     Serial.println(this->step_delay);
@@ -48,12 +51,21 @@ void Stepper::setMove(int steps_to_move, long whatSpeed, bool finish)
 {
     this->setMove(steps_to_move, whatSpeed);
     if (finish)
-        while (this->step())
+        while (this->stepDelay())
         {
             delay(1);
         };
 }
 int Stepper::step()
+{
+    if (this->move_continue && this->step_delay != 0 && (this->step_delay + this->last_step_time) < micros())
+    {
+        stepMotor();
+        this->last_step_time = this->last_step_time + this->step_delay;
+    }
+    return this->last_step_time;
+}
+int Stepper::stepDelay()
 {
     if (this->steps_left < 1 && !this->move_continue)
         return 0;
@@ -83,7 +95,7 @@ int Stepper::step()
     // decrement the steps left:
     this->steps_left--;
     // step the motor to step number 0, 1, ..., {3 or 10}
-    stepMotor(1);
+    stepMotor();
     this->last_step_time = this->last_step_time + this->step_delay;
     return this->steps_left;
 }
@@ -95,7 +107,7 @@ void Stepper::dirMotor(int dir)
     if (dir == 0 && digitalRead(this->dir_pin) != LOW)
         digitalWrite(this->dir_pin, LOW);
 }
-void Stepper::stepMotor(int this_step)
+void Stepper::stepMotor()
 {
     digitalWrite(this->step_pin, HIGH);
     delayMicroseconds(50);

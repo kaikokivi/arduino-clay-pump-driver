@@ -11,9 +11,9 @@
 
  */
 #include <Arduino.h>
-#include <StepperDriver.h>
 #include <ArduinoBLE.h>
-
+#include <StepperDriver.h>
+#include <PressureReader.h>
 
 const int fullStepRev = 200;
 const int stepFrag = 5;
@@ -22,10 +22,15 @@ int speed = 0;
 unsigned long start = 0L;
 // for your motor
 
-// initialize the stepper library on pins 8 through 11:
+// initialize the stepper library on pins 8, 9:
 Stepper myStepper(stepsPerRevolution, 8, 9);
-BLEService StepperService("19b10000-e8f2-537e-4f6c-d104768a1214"); // BLE LED Service
-BLEIntCharacteristic speedCharacteristic("19b10001-e8f2-537e-4f6c-d104768a1214", BLERead | BLEWrite | BLENotify);
+
+// initialise pressure sensor
+PressureSensor pressureSensor = PressureSensor();
+
+BLEService StepperService("2f62cdb2-d105-466e-a818-81ea9adfe9ae"); // BLE LED Service
+BLEIntCharacteristic speedCharacteristic("f2dd248a-4c5f-48c4-bee7-cc237fd666b4", BLERead | BLEWrite | BLENotify);
+BLEFloatCharacteristic pressureCharacteristic("2dbee6b6-3bb7-456a-bd83-d830ed191eea", BLERead | BLEWrite | BLENotify);
 
 void setup()
 {
@@ -45,12 +50,13 @@ void setup()
   }
 
   // set advertised local name and service UUID:
-  BLE.setLocalName("Pump_driver");
-  BLE.setDeviceName("Pump_driver");
+  BLE.setLocalName("Pump_driver_2");
+  BLE.setDeviceName("Pump_driver_2");
   BLE.setAdvertisedService(StepperService);
 
   // add the characteristic to the service
   StepperService.addCharacteristic(speedCharacteristic);
+  StepperService.addCharacteristic(pressureCharacteristic);
 
   // add service
   BLE.addService(StepperService);
@@ -75,13 +81,19 @@ void loop()
   // if a central is connected to peripheral:
   if (central.connected())
   {
+    if (!pressureSensor.begin())
+    {
+      Serial.println("Failed to find INA219 chip");
+    }
+    int pressure_plot_cycle = 0;
+
     Serial.print("Connected to central: ");
     // print the central's MAC address:
     Serial.println(central.address());
     
     while(central.connected()){
       digitalWrite(LED_BUILTIN, HIGH); // turn the LED on (HIGH is the voltage level)
-      step = myStepper.step() != 0;
+      step = myStepper.step();
 
       // check for characteristic write
       if (speedCharacteristic.written())
@@ -94,13 +106,29 @@ void loop()
         myStepper.setMove(0, speed);
       }
 
-      // do step if required
-      if (step) {
-        // .step() returns steps left so if not 0 will keep stepping
-        step = myStepper.step() != 0;
+      if ((1000.0 + pressureSensor.last_read_time) < micros())
+      {
+        float pressure = pressureSensor.readMA();
+        if (pressure_plot_cycle < 100)
+        {
+          pressure_plot_cycle++;
+        }
+        else
+        {
+          pressureCharacteristic.writeValue(pressure);
+          Serial.print("Pressure: ");
+          Serial.println(pressure);
+          pressure_plot_cycle = 0;
+        }
+
+        // myStepper.setMove(0, myStepper.speed*(1 - (pressure-2.0) / 2.0));
+        // Serial.print("Speed: ");
+        // Serial.println(myStepper.speed);
       }
-      // Serial.print("move time: ");
-      // Serial.println(micros() - start);
+
+      // do step if required
+      myStepper.step();
+      
 
       // while(myStepper.step())
       digitalWrite(LED_BUILTIN, LOW); // turn the LED off by making the voltage LOW
@@ -112,7 +140,7 @@ void loop()
       Serial.print(F("Disconnected from central: "));
       Serial.println(central.address());
       while(step && !central.connected()){
-        step = myStepper.step() != 0;
+        myStepper.step();
       }
     }
   }

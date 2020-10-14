@@ -15,15 +15,18 @@ class Stepper
 public:
     Stepper(int stepsPerRevolution, int step_pin, int dir_pin);
 
+    long speed;
     void setSpeed(long whatSpeed);
     void setMove(int steps_to_move);
     void setMove(int steps_to_move, long whatSpeed);
     void setMove(int steps_to_move, long whatSpeed, bool finish);
     int step();
+    int stepDelay();
+    unsigned long last_step_time; // time stamp in us of when the last step was taken
 
 private:
     void dirMotor(int dir);
-    void stepMotor(int this_step);
+    void stepMotor();
     int dir;
     int step_pin;
     int dir_pin;
@@ -32,5 +35,4 @@ private:
     bool move_continue;
     unsigned long step_delay;
     int number_of_steps;
-    unsigned long last_step_time; // time stamp in us of when the last step was taken
 };
