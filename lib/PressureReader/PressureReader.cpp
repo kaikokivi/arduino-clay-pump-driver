@@ -5,7 +5,7 @@
 PressureSensor::PressureSensor () {
     Adafruit_INA219 ina219;
     this->sensor = ina219;
-    this->error = false;
+    this->connected = false;
     // this->sensor.begin();
 
     this->pressure_MA = -5.76;
@@ -13,15 +13,21 @@ PressureSensor::PressureSensor () {
     this->last_read_time = micros();
 }
 bool PressureSensor::begin(){
-    Serial.write("sensor begin");
-    this->error = !this->sensor.begin();
+    Serial.println("Sensor begin");
+    this->connected = this->sensor.begin();
+    if(this->connected) {
+        Serial.println("Sensor connected");
+    } else {
+        Serial.println("Sensor not connected");
+    }
 
-    return !this->error;
+    return this->connected;
 }
 float PressureSensor::read() {
     // Adafruit_INA219 ina219;
-    if(this->error) {
-        return pressure_MA + 1;
+    if (this->connected)
+    {
+        return pressure_MA;
     }
 
     float voltage_V = 0;

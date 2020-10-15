@@ -16,9 +16,12 @@ Stepper::Stepper(int stepsPerRevolution, int step_pin, int dir_pin)
 void Stepper::setSpeed(long whatSpeed)
 {
     this->speed = whatSpeed;
+    if(this->speed == 0) {
+        this->move_continue = false;
+    }
     //Serial.println("setSpeed");
     this->step_delay = 60L * 1000L * 1000L / this->number_of_steps / abs(whatSpeed);
-    Serial.println(this->step_delay);
+    // Serial.println(this->step_delay);
     if (whatSpeed > 0)
     {
         dirMotor(1);
@@ -60,8 +63,10 @@ int Stepper::step()
 {
     if (this->move_continue && this->step_delay != 0 && (this->step_delay + this->last_step_time) < micros())
     {
+        // Serial.println("step");
         stepMotor();
         this->last_step_time = this->last_step_time + this->step_delay;
+        // above would fail to catch up if the motor is behind a more than a step
     }
     return this->last_step_time;
 }
