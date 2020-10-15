@@ -39,7 +39,7 @@ int speed = 0; // initial speed is 0
 float pressureTarget = 5.0; // initial pressure target is 5.0
 
 // initialize the stepper library on pins 8, 9:
-Stepper myStepper(stepsPerRevolution, 8, 9);
+Stepper pumpStepper(stepsPerRevolution, 8, 9);
 
 // initialise pressure sensor
 PressureSensor pressureSensor;
@@ -54,12 +54,14 @@ void setup()
   // set the speed at 60 rpm:
   // initialize the serial port:
   Serial.begin(9600);
-  while (!Serial);
+  // while (!Serial);
 
   pinMode(LED_BUILTIN, OUTPUT);
 
   if(!pressureSensor.begin()) {
+
     Serial.println("Starting sensor falied");
+    pumpStepper.setMove(0,0);
   }
 
   if (!BLE.begin())
@@ -103,13 +105,13 @@ void loop()
   if (central.connected())
   {
     if(BLEStatus == false) {
+      digitalWrite(LED_BUILTIN, HIGH); // turn the LED on (HIGH is the voltage level)
       Serial.print("Connected to central: ");
       // print the central's MAC address:
       Serial.println(central.address());
       BLEStatus = true;
     }
 
-    // while(central.connected()){
       digitalWrite(LED_BUILTIN, HIGH); // turn the LED on (HIGH is the voltage level)
 
       // check for characteristic write
@@ -119,7 +121,7 @@ void loop()
         Serial.println(speedCharacteristic.value(), 10);
         speed = speedCharacteristic.value();
         // setMove(int <no of steps> | 0 <infinite> [, int <speed rpm> [, bool <move immediately>])
-        myStepper.setMove(0, speed);
+        pumpStepper.setMove(0, speed);
       }
 
       if (pressureTargetCharacteristic.written())
@@ -128,11 +130,18 @@ void loop()
         Serial.println(pressureTargetCharacteristic.value());
         pressureTarget = pressureTargetCharacteristic.value();
         // setMove(int <no of steps> | 0 <infinite> [, int <speed rpm> [, bool <move immediately>])
-        myStepper.setMove(0, speed);
+        if(pressureSensor.connected) {
+          pumpStepper.setMove(0, speed);
+        } else {
+          pumpStepper.setMove(0, 0);
+          if(pressureSensor.begin()) {
+            pumpStepper.setMove(0, speed);
+          } else {
+            Serial.println("Pressure sensor not connected!");
+          }
+        }
       }
-      // while(myStepper.step())
-      digitalWrite(LED_BUILTIN, LOW); // turn the LED off by making the voltage LOW
-    // }
+      // while(pumpStepper.step())
     
   }
 
@@ -155,30 +164,31 @@ void loop()
         pressure_plot_cycle = 0;
         if (pressure > pressureTarget)
         {
-          myStepper.setMove(0, 0);
+          pumpStepper.setMove(0, 0);
         }
         if (pressure < (pressureTarget * 0.95))
         {
-          myStepper.setMove(0, speed);
+          pumpStepper.setMove(0, speed);
         }
       }
 
       // hard stop when pressure hits a limit or is lost somehow
       if (pressure > 12 || pressure < 3) {
-        myStepper.setMove(0, 0);
+        pumpStepper.setMove(0, 0);
       }
     }
 
     // do step if required
-    myStepper.step();
+    pumpStepper.step();
   } else {
     // Serial.println("step");
     // do step if required without a sensor
-    myStepper.step();
+    pumpStepper.step();
   }
 
   if (!central.connected() && BLEStatus == true)
   {
+    digitalWrite(LED_BUILTIN, LOW); // turn the LED off by making the voltage LOW
     Serial.print(F("Disconnected from central: "));
     Serial.println(central.address());
     BLEStatus = false;
