@@ -25,7 +25,7 @@ bool PressureSensor::begin(){
 }
 float PressureSensor::read() {
     // Adafruit_INA219 ina219;
-    if (this->connected)
+    if (!this->connected)
     {
         return pressure_MA;
     }
@@ -55,7 +55,7 @@ float PressureSensor::readMA(void) {
 
     float current_mA = this->read();
 
-    if (this->MA_current_itt < 100) {
+    if (this->MA_current_itt < 1000) {
         this->MA_current_itt++;
     } 
 

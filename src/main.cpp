@@ -37,6 +37,7 @@ const int stepsPerRevolution = fullStepRev * stepFrag; // change this to fit the
 
 int speed = 0; // initial speed is 0
 float pressureTarget = 5.0; // initial pressure target is 5.0
+int pressure_plot_cycle = 0;
 
 // initialize the stepper library on pins 8, 9:
 Stepper pumpStepper(stepsPerRevolution, 8, 9);
@@ -62,6 +63,11 @@ void setup()
 
     Serial.println("Starting sensor falied");
     pumpStepper.setMove(0,0);
+  } else {
+    float pressure = pressureSensor.readMA();
+
+    Serial.print("Pressure ");
+    Serial.println(pressure);
   }
 
   if (!BLE.begin())
@@ -133,6 +139,11 @@ void loop()
         pressureTarget = pressureTargetCharacteristic.value();
         // setMove(int <no of steps> | 0 <infinite> [, int <speed rpm> [, bool <move immediately>])
         if(pressureSensor.connected) {
+          float pressure = pressureSensor.readMA();
+          Serial.print("Pressure ");
+          Serial.println(pressure);
+          pressureCharacteristic.writeValue(pressure);
+
           pumpStepper.setMove(0, speed);
           speedCharacteristic.writeValue(speed);
         }
@@ -157,10 +168,9 @@ void loop()
     
   }
 
-  if (pressureTarget != 0 && pressureSensor.connected)
+  if (pressureSensor.connected)
   {
-    int pressure_plot_cycle = 0;
-    if ((1000.0 + pressureSensor.last_read_time) < micros())
+    if ((pressureSensor.last_read_time + 10.0) < micros())
     {
       float pressure = pressureSensor.readMA();
       if (pressure_plot_cycle < 100)
@@ -169,21 +179,36 @@ void loop()
       }
       else
       {
+        Serial.print("Pressure ");
+        Serial.println(pressure);
+        pressureCharacteristic.writeValue(pressure);
+
         if (pressure > pressureTarget)
         {
           pumpStepper.setMove(0, 0);
           speedCharacteristic.writeValue(0);
         }
-        if (pressure < (pressureTarget * 0.95))
-        {
-          pumpStepper.setMove(0, speed);
-          speedCharacteristic.writeValue(speed);
+        if(pressure < pressureTarget) {
+          if (pressure < (pressureTarget * 0.98) && pressureTarget != 0)
+          {
+            pumpStepper.setMove(0, speed);
+            speedCharacteristic.writeValue(speed);
+          } else {
+            float speedFrac = (pressureTarget - pressure) / pressureTarget / 0.02;
+            Serial.print("SpeedFrac");
+            Serial.println(speedFrac);
+            Serial.println(speed * speedFrac);
+            pumpStepper.setMove(0, speed);
+            speedCharacteristic.writeValue(speed * speedFrac);
+          }
         }
+        pressure_plot_cycle = 0;
       }
 
       // hard stop when pressure hits a limit or is lost somehow
       if (pressure > 12 || pressure < 3) {
         pumpStepper.setMove(0, 0);
+        pressureCharacteristic.writeValue(pressure);
         speedCharacteristic.writeValue(0);
       }
     }
