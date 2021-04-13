@@ -1,4 +1,4 @@
-#include "Arduino.h"
+#include <Arduino.h>
 #include "StepperDriver.h"
 
 Stepper::Stepper(int stepsPerRevolution, int step_pin, int dir_pin)

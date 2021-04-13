@@ -1,6 +1,6 @@
 #include <Wire.h>
 #include <Adafruit_INA219.h>
-#include <PressureReader.h>
+#include "PressureReader.h"
 
 PressureSensor::PressureSensor () {
     Adafruit_INA219 ina219;

@@ -12,8 +12,8 @@
  */
 #include <Arduino.h>
 #include <ArduinoBLE.h>
-#include <StepperDriver.h>
-#include <PressureReader.h>
+#include "src/StepperDriver/StepperDriver.h"
+#include "src/PressureReader/PressureReader.h"
 
 // BLE attributes for Pump controller
 const char *BLE_LOCAL_NAME = "Pump";
