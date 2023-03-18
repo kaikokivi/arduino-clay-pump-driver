@@ -170,7 +170,7 @@ void loop()
 
   if (pressureSensor.connected)
   {
-    if ((pressureSensor.last_read_time + 10.0) < micros())
+    if ((micros() - pressureSensor.last_read_time) > 10.0)
     {
       float pressure = pressureSensor.readMA();
       if (pressure_plot_cycle < 100)

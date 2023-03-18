@@ -61,7 +61,10 @@ void Stepper::setMove(int steps_to_move, long whatSpeed, bool finish)
 }
 int Stepper::step()
 {
-    if (this->move_continue && this->step_delay != 0 && (this->step_delay + this->last_step_time) < micros())
+    if (
+        this->move_continue && // is in move
+        this->step_delay != 0 && // speed is defined
+        ( micros() - this->last_step_time) > this->step_delay) // time to make a step has come
     {
         // Serial.println("step");
         stepMotor();
